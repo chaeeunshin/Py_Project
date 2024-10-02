@@ -1,0 +1,72 @@
+---
+title: "Solution to multiple regression example"
+author: "Chaeeun Shin"
+date: "02/27/2024"
+output: word_document
+---
+
+# Install packages 
+
+```{r}
+library(MASS)
+library(tidyverse)
+library(caret)
+library(glmnet)
+```
+# Question 1
+```{r}
+setwd("/Users/chaeeunshin/Desktop/AMS 580")
+data1 <- read.csv('math.csv', sep = ';')
+data1 <- subset(data1, select = - c(G1,G2))
+set.seed(123)
+training.samples <- data1$G3 %>% createDataPartition(p = 0.75, list = FALSE)
+train.data  <- data1[training.samples, ]
+test.data <- data1[-training.samples, ]
+```
+
+# Question 2
+```{r}
+fit <- lm(G3~., data = train.data)
+fit_step <- stepAIC(fit, k = log(nrow(train.data)), trace = 1)
+pred <- fit_step %>% predict(test.data)
+data.frame(
+RMSE = RMSE(pred, test.data$G3),
+Rsquare = R2(pred, test.data$G3)
+)
+```
+
+# Question 3
+```{r}
+library(leaps)
+fit_bs <- regsubsets(G3~., data = train.data, nvmax = 30)
+result <- summary(fit_bs)
+which.min(result$bic)
+```
+```{r}
+result$which[3,]
+```
+
+```{r}
+fit_bs <- lm(G3~Mjob +  failures + romantic, data = train.data)
+pred <- fit_bs %>% predict(test.data)
+data.frame(
+RMSE = RMSE(pred, test.data$G3),
+Rsquare = R2(pred, test.data$G3)
+)
+```
+
+# Question 4
+
+## Two models with different predictors, three predictors each
+## BICs: Smaller -> better
+```{r}
+mod1 <- lm(G3~Medu +  failures + romantic, data = train.data)
+mod2 <- lm(G3~Mjob +  failures + romantic, data = train.data)
+BIC(mod1)
+BIC(mod2) 
+```
+Based on the BIC values of the fitted model using the training data - the one selected by the Stepwise regression using the BIC criterion has a slughtly smaller BIC value. This is because the Stepwise procedure uses the BIC critrion while the Best Subset procedure here uses the SSE (RSS) as selection criterion. Theoretically, had we used the same model selection criterion, say BIC, for both the stepwise and the best subset procedures, then with the same number of predictors, the best subset model should be the optimal. 
+
+According to the RMSE and R2 of the predition for the test data, the slightly better model is the 3-variable stepwie regression model as well, for this example. 
+
+We could (a) include interaction terms or (b) transform the dependent variables or (c) consider the randomness of regressors to improve the result.

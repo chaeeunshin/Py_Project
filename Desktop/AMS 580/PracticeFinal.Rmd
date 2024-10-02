@@ -1,0 +1,118 @@
+---
+title: Practice Final
+output: pdf_document
+---
+```{r}
+library(tidyverse)
+library(caret)
+library(neuralnet)
+library(keras)
+library(rpart)
+library(rattle)
+library(randomForest)
+```
+# Part 1
+Loading data, removing observations with mission value.
+```{r}
+Unknown <- read.csv("Unknown.csv")
+Unknown <- na.omit(Unknown)
+cat("There are", nrow(Unknown), "observations left.")
+```
+
+Splitting train and test data
+```{r}
+train.samples <- Unknown$y %>%
+  createDataPartition(p=0.75,list=FALSE)
+train.data <- Unknown[train.samples,]
+test.data <- Unknown[-train.samples,]
+nrow(train.data)
+nrow(test.data)
+```
+
+Perception model
+(i) one hidden layer with 3 neurons
+(ii) the default loss function of "sse"
+(iii) the default activation function of "logistic"
+```{r}
+set.seed(123)
+model1 <- neuralnet(y~., data=train.data, hidden=3, err.fct="sse",act.fct="logistic",linear.output=FALSE)
+
+probabilities1 <- model1 %>% predict(test.data) %>% as.vector()
+pred1 <- ifelse(probabilities1>0.5,1,0)
+confusionMatrix(factor(predicted.class1),factor(test.data$y))
+```
+
+Perception model 2
+(i) one hidden layer with 3 neurons
+(ii) the loss function of "ce"
+(iii) the default activation function of "logistic"
+```{r}
+set.seed(123)
+model2 <- neuralnet(y~., data=train.data, hidden=3, err.fct="ce",act.fct="logistic",linear.output=FALSE)
+plot(model, rep="best")
+
+probabilities2 <- model2 %>% predict(test.data) %>% as.vector()
+pred2 <- ifelse(probabilities2>0.5,1,0)
+confusionMatrix(factor(predicted.class2),factor(test.data$y))
+```
+
+(b) provides better overall accuracy than (a)
+
+ using randomForest
+ Building the best random forest, confusion matrix using the out of bag(OOB) samples
+```{r}
+train.data$y <- factor(train.data$y)
+test.data$y <- factor(test.data$y)
+set.seed(123)
+
+model3 <- train(y~., data=train.data,method="rf",trControl=trainControl("cv",number=10),importance=TRUE)
+
+model3$bestTune
+model3$finalModel
+cat("Accuracy =", (1962+1214)/(1962+1214+121+169))
+cat("Sensitivity =", (1214)/(1214+169))
+cat("Specificity =", (1962)/(121+1962))
+```
+```{r}
+pred3 <- model3 %>% predict(test.data)
+confusionMatrix(pred3, test.data$y,positive="1")
+```
+
+ Plot MeanDecreaseAccuracy, MeanDecreaseGini
+```{r}
+varImpPlot(model3$finalModel,type=1)
+varImpPlot(model3$finalModel,type=2)
+```
+
+ Importance of each variable in percentage based on MeanDecreaseAccuracy
+```{r}
+varImp(model3,type=1)
+```
+
+ Using the caret package to build the various SVM classifiers. Building the best classifier to predict class using the training data and the SVM with radial basis kernel
+```{r}
+set.seed(123)
+model4 <- train(y~., data=train.data, method="svmRadial",trControl=trainControl("cv",number=10),tuneLength=10)
+plot(model4)
+model4$bestTune
+pred4 <- predict(model4,newdata=test.data)
+confusionMatrix(pred4,test.data$y)
+```
+
+Ensemble classifier using the majority vote
+```{r}
+pred1 <- as.factor(pred1)
+pred2 <- as.factor(pred2)
+pred <- cbind(pred1,pred2,pred3,pred4)
+pred.mv <- apply(pred,1,function(x) names(which.max(table(x))))
+pred.mv <- factor(pred.mv,levels=c('1','2'),labels=c('0','1'))
+
+confusionMatrix(pred.mv, test.data$y, positive='1')
+```
+
+# Part 2
+```{r}
+install.packages('tidyquant')
+install.packages('magrittr')
+install.packages('zoo')
+```

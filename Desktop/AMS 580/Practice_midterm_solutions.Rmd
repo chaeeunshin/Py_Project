@@ -1,0 +1,143 @@
+---
+title: "Practice Midterm Solutions"
+author: "Weihao Wang"
+date: "3/25/2024"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+Part I. Classification Tasks with the Enigma
+
+Q1.
+
+```{r}
+library(caret)
+library(neuralnet)
+library(keras)
+library(tidyverse)
+library(dplyr)
+library(cloudml)
+library(randomForest)
+library(rpart)
+library(rattle)
+library(tensorflow)
+
+data <- read.csv("Enigma.csv")
+data$x13_1 = ifelse(data$x13 == 1, 1, 0) #dummy variable (k-1 dummy variables)
+data$x13_2 = ifelse(data$x13 == 2, 1, 0)
+data = subset(data, select = -c(x13))
+data = na.omit(data)
+cat('There are', nrow(data), 'observations left.')
+
+set.seed(123)
+training.samples <- data$y %>%
+  createDataPartition(p = 0.75, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+str(train.data)
+str(test.data)
+```
+
+Q2.
+
+```{r}
+set.seed(123)
+model1 = neuralnet(y~., data = train.data, hidden = 3, err.fct = "ce",act.fct = "logistic", linear.output = F)
+plot(model1, rep = "best") # plot the model
+
+probabilities = predict(model1, test.data)
+predicted.classes = ifelse(probabilities > 0.5, 1, 0)
+
+(c1 = confusionMatrix(factor(predicted.classes), factor(test.data$y), positive = "1")) # confusion matrix
+```
+
+Q3.
+
+```{r}
+train.data$y = as.factor(train.data$y)
+test.data$y = as.factor(test.data$y)
+
+set.seed(123)
+model2 = train(
+  y ~., data = train.data, method = "rpart",
+  trControl = trainControl("cv", number = 10),
+  tuneLength = 100)
+plot(model2)
+model2$bestTune
+fancyRpartPlot(model2$finalModel)
+
+pred = predict(model2, newdata = test.data)
+(c2 = confusionMatrix(pred, factor(test.data$y), positive = "1")) # confusion matrix
+```
+
+Part II. Regression Analyses & Variable Selections with the Mystery Data
+
+Q1.
+
+```{r}
+data1 = read.csv("Mystery.csv")
+data1$x15 = ifelse(data1$x15 == 'y', 1, 0)
+mean = mean(data1$y)
+sd = sd(data1$y)
+data1 = data.frame(scale(data1))
+data = na.omit(data1)
+
+cat('There are', nrow(data1) - nrow(data), 'missing values.')
+
+set.seed(123)
+training.samples <- data$y %>%
+  createDataPartition(p = 0.75, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+str(train.data)
+str(test.data)
+```
+
+Q2.
+
+```{r}
+library(tensorflow)
+
+train_x = as.matrix(subset(train.data, select = -y))
+train_y = as.matrix(subset(train.data, select = y))
+test_x = as.matrix(subset(test.data, select = -y))
+test_y = as.matrix(subset(test.data, select = y))
+
+set_random_seed(123)
+model3 <- keras_model_sequential() 
+model3 %>% layer_dense(units = 3, activation = 'relu', input_shape = c(15)) %>% 
+  layer_dense(units = 1, activation = "linear")
+model3 %>% compile(loss='mse',optimizer='adam',metrics='mse')
+summary(model3)
+history = model3 %>% fit(train_x,train_y, epochs=50,batch_size = 8,validation_split = 0.1)
+plot(history)
+preds <- predict(model3, test_x)
+
+# scaled test RMSE
+RMSE(test.data$y, preds)
+# test RMSE
+RMSE(test.data$y*sd+mean, preds*sd+mean)
+```
+
+Q3.
+
+```{r}
+detach(package:keras,unload=TRUE)
+detach(package:tensorflow,unload=TRUE)
+
+model4 = train(
+  y ~., data = train.data, method = "rpart",
+  trControl = trainControl("cv", number = 10),
+  tuneLength = 100)
+plot(model4)
+model4$bestTune
+fancyRpartPlot(model4$finalModel)
+predictions = model4 %>% predict(test.data)
+
+# scaled test RMSE
+RMSE(test.data$y, predictions)
+# test RMSE
+RMSE(test.data$y*sd+mean, predictions*sd+mean)
+```

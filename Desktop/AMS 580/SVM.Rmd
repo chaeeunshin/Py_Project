@@ -1,0 +1,71 @@
+---
+title: Support Vector Machine, classification
+output: pdf_document
+---
+
+```{r}
+Titanic <- read.csv("Titanic.csv")
+Titanic <- Titanic[,-c(1,4,9,11)]
+Titanic <- Titanic[-which(is.na(Titanic$Age)),]
+Titanic$Survived <- as.factor(Titanic$Survived)
+Titanic$Pclass <- as.factor(Titanic$Pclass)
+Titanic$Age <- scale(Titanic$Age)
+Titanic$Fare <- scale(Titanic$Fare)
+cat("There are",nrow(Titanic), "passengers left.")
+```
+
+```{r}
+library(caret)
+library(tidyverse)
+set.seed(123)
+training_samples <- Titanic$Survived %>%
+  createDataPartition(p=0.75,list=FALSE)
+train_data <- Titanic[training_samples,]
+test_data <- Titanic[-training_samples,]
+nrow(train_data)
+nrow(test_data)
+```
+
+```{r}
+library(kernlab)
+set.seed(123)
+model <- train(Survived~., data=train_data, method="svmLinear", trControl = trainControl("cv",number = 10))
+predicted_class <- model %>% predict(test_data)
+
+confusionMatrix(factor(predicted_class),factor(test_data$Survived),positive='1')
+```
+
+```{r}
+set.seed(123)
+model <- train(Survived~.,data=train_data,method="svmLinear",trControl=trainControl("cv",number=10),tuneGrid=expand.grid(C=seq(0.1,2,length=19)))
+
+plot(model) #plot model accuracy vs. different values of Cost
+model$bestTune #the best tuning parameter that maximizes model accuracy
+
+model <- train(Survived~.,data=train_data,method="svmLinear",trControl=trainControl("cv",number=10),tuneGrid=expand.grid(C=0.1)) #refit a model using the best tuning parameter 
+
+predicted_class <- model %>% predict(test_data)
+confusionMatrix(factor(predicted_class),factor(test_data$Survived),positive='1')
+```
+```{r}
+set.seed(123)
+model <- train(Survived~.,data=train_data,method="svmRadial",trControl=trainControl("cv",number=10),tunelength=10)
+model$bestTune # Print the best tuning parameter sigma and C that maximizes model accuracy
+
+predicted_class <- model %>% predict(test_data)
+
+confusionMatrix(factor(predicted_class),factor(test_data$Survived),positive='1')
+
+```
+
+```{r}
+set.seed(123)
+model <- train(Survived~., data=train_data, method="svmPoly",trControl=trainControl("cv",number=10),tuneLength=4)
+model$bestTune # Print the best tuning parameter sigma and C that maximizes model accuracy
+
+predicted_class <- model %>% predict(test_data)
+
+confusionMatrix(factor(predicted_class),factor(test_data$Survived),positive="1")
+
+```
+

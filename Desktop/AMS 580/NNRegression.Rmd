@@ -1,0 +1,99 @@
+---
+title: Neural Network Regression Practice
+output: pdf_document
+---
+
+# Installing packages
+```{r}
+if(!requireNamespace("tidyverse"))install.packages('tidyverse')
+if(!requireNamespace("caret"))install.packages('caret')
+if(!requireNamespace("neuralnet"))install.packages('neuralnet')
+library(tidyverse)
+library(caret)
+library(keras)
+library(neuralnet)
+library(MASS)
+```
+
+# Reading data
+```{r}
+data("Boston")
+data <- Boston
+data <- subset(data, select = -(rad)) #exclude RAD
+mean <- mean(data$medv)
+sd <- sd(data$medv)
+data <- data.frame(scale(data)) # normalize the data
+```
+
+# Split train and test data
+```{r}
+set.seed(123)
+training.samples <- data$medv %>%
+  createDataPartition(p=0.75,list=FALSE)
+train.data <- data[training.samples,]
+test.data <- data[-training.samples,]
+str(train.data)
+str(test.data)
+```
+
+# Predictive model 1
+(i): no hidden layers
+(ii): the default loss function of "sse"
+(iii): the default activation function of "identity"
+```{r}
+set.seed(123)
+nn <- neuralnet(medv~., data=train.data, hidden=0, err.fct="sse",linear.output=T)
+plot(nn,rep="best")
+
+pr.nn0 <- predict(nn, test.data)
+(MSE.nn.1 <- RMSE(test.data$medv*sd+mean,pr.nn0*sd+mean)^2)
+```
+
+# Predictive model 2
+(i): one hidden layer with 3 neurons
+(ii): the default loss function of "sse"
+(iii): the default activation function of "identity"
+```{r}
+set.seed(123)
+nn <- neuralnet(medv~.,data=train.data,hidden=3,err.fct="sse",linear.output=T)
+plot(nn, rep="best")
+pr.nn1 <- predict(nn, test.data)
+(MSE.nn.2 = RMSE(test.data$medv*sd+mean,pr.nn1*sd+mean)^2)
+```
+# Multiple regression model
+```{r}
+set.seed(123)
+mlr <- lm(medv~., data=train.data)
+summary(mlr)
+
+pr.mlr <- predict(mlr,test.data)
+(MSE.mlr <- RMSE(test.data$medv*sd+mean,pr.mlr*sd+mean)^2)
+```
+
+# MLE comparision
+```{r}
+print(paste(MSE.nn.1,MSE.nn.2,MSE.mlr))
+```
+
+# Compare with multiple linear regression
+summarize the predictions from different models
+```{r}
+final1 <- data.frame(predictions_NN0=pr.nn0*sd+mean, predictions_NN1=pr.nn1*sd+mean,predictions_MLR=pr.mlr*sd+mean,actual_response=test.data$medv*sd+mean)
+knitr::kable(head(final1))
+```
+
+# Plot 3 models vs. true values
+```{r}
+attach(final1)
+
+plot(actual_response, predictions_NN0,col="red",ylab="Predicted house price",xlab="True value of the house price")
+points(actual_response,predictions_NN1,col="blue")
+points(actual_response,predictions_MLR,col="green")
+abline(a=0,b=1)
+```
+
+# NN Model with no hidden layer with 3 neurons vs. MLR
+```{r}
+plot(predictions_MLR,predictions_NN0,col="blue",ylab="predictions of NN with no hidden layer", xlab="predictions of MLR")
+abline(a=0,b=1)
+```

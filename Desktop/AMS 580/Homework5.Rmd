@@ -1,0 +1,72 @@
+---
+title: "Homework 5"
+author: "Chaeeun Shin"
+date: "03/05/2024"
+output: word_document
+---
+# Install packages
+```{r}
+library(MASS)
+library(tidyverse)
+library(caret)
+library(glmnet)
+```
+# Reading data
+```{r}
+setwd("/Users/chaeeunshin/Desktop/AMS 580")
+data <- read.csv('banknote.csv')
+data <- na.omit(data)
+head(data)
+```
+
+# Question (a): Split the data into 80% training and 20% testing using seed=123
+```{r}
+set.seed(123)
+training.samples <- data$class %>%
+  createDataPartition(p = 0.80, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+
+data$class <- as.factor(data$class)
+```
+
+# Question (b): Fit a logistic regression model with all 4 predictors using the training data
+```{r}
+model <- glm(class~., train.data, family=binomial)
+summary(model)
+```
+
+# Question (c): Predict the response variable for testing data
+```{r}
+probabilities <- model %>% predict(test.data, type = "response")
+predicted.classes <- ifelse(probabilities>0.5, "1", "0")
+```
+
+## Confusion matrix for testing data
+```{r}
+table(predicted.classes, test.data$class)
+```
+
+## Report overall accuracy
+```{r}
+mean(predicted.classes == test.data$class)
+
+(125+145)/(125+3+1+145)
+```
+Overall accuracy = P(predicted correctly) = (125+145)/(125+3+1+145) = 0.9854
+
+## Sensitivity
+```{r}
+sum((predicted.classes=='1')*(test.data$class=='1')) / sum(test.data$class=='1')
+
+145/(3+145)
+```
+Sensitivity = P(predicted forged | forged) = 0.9797
+
+## Specificity
+```{r}
+sum((predicted.classes=='0')*(test.data$class=='0')) / sum(test.data$class=='0')
+
+125/(125+1)
+```
+Specificity = P(predicted genuine | genuine) = 0.9921

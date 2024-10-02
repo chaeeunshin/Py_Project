@@ -1,0 +1,120 @@
+---
+title: Neural Network Classification Practice
+output: pdf_document
+---
+
+# Installing Packages
+```{r}
+if(!requireNamespace("tidyverse"))install.packages('tidyverse')
+if(!requireNamespace("caret"))install.packages('caret')
+if(!requireNamespace("neuralnet"))install.packages('neuralnet')
+if(!requireNamespace("keras"))install.packages('keras')
+library(tidyverse)
+library(caret)
+library(neuralnet)
+library(keras)
+```
+
+# Reading Data
+```{r}
+data <- read.csv('banknote.csv')
+data <- na.omit(data)
+cat("There are", nrow(data), "observations left.")
+str(data)
+```
+# Split train and test data
+```{r}
+set.seed(123)
+training.samples <- data$class %>% createDataPartition(p=0.75,list=FALSE)
+train.data <- data[training.samples,]
+test.data <- data[-training.samples,]
+nrow(train.data)
+nrow(test.data)
+```
+
+# Perception model 1
+(i) No hidden layer
+(ii) The default loss function of "SSE"
+(iii) the default activation function of "logistic"
+```{r}
+set.seed(123)
+model <- neuralnet(class~., data=train.data, hidden = 0, err.fct = "sse", act.fct="logistic", linear.output = FALSE)
+plot(model, rep = "best")
+```
+
+# Confusion matrix - Perception model 1
+```{r}
+probabilities <- model %>% predict(test.data) %>% as.vector()
+predicted.class <- ifelse(probabilities>0.5,1,0)
+confusionMatrix(factor(predicted.class),factor(test.data$class), positive = "1")
+```
+
+# Perception model 2
+(i) No hidden layer
+(ii) The loss function of "ce" (namely, cross-entropy)
+(iii) the default logistic function of "logistic"
+```{r}
+set.seed(123)
+model <- neuralnet(class~., data=train.data, hidden = 0, err.fct = "ce", act.fct = "logistic", linear.output = FALSE)
+plot(model, rep = "best")
+```
+
+# Confusion matrix - Perception model 2
+```{r}
+probabilities <- model %>% predict(test.data) %>% as.vector()
+predicted.class <- ifelse(probabilities>0.5,1,0)
+confusionMatrix(factor(predicted.class),factor(test.data$class),positive="1")
+```
+
+# Logistic regression model
+```{r}
+model <- glm(class~., family = binomial, data = train.data)
+model
+```
+
+CE loss function model better ensembles logistic regression model
+
+# Confusion matrix - Logistic regression model
+```{r}
+probabilities <- model %>% predict(test.data) %>% as.vector()
+predicted.class <- ifelse(probabilities>0.5,1,0)
+confusionMatrix(factor(predicted.class),factor(test.data$class),positive="1")
+```
+
+# Perception model 3
+(i): one hidden layer with 3 neurons
+(ii): the default loss function of "sse"
+(iii): the default activation function of "logistic"
+```{r}
+set.seed(123)
+model <- neuralnet(class~., data=train.data, hidden=3, err.fct="sse",act.fct = "logistic", linear.output=FALSE)
+plot(model, rep = "best")
+```
+
+# Confusion matrix - Perception model 3
+```{r}
+probabilities <- model %>% predict(test.data) %>% as.vector()
+predicted.class <- ifelse(probabilities>0.5,1,0)
+confusionMatrix(factor(predicted.class),factor(test.data$class),positive="1")
+```
+
+The prediction with hidden layer is better than no hidden layer.
+
+# Perception model 4
+(i): one hidden layer with 3 neurons
+(ii): the loss function of "ce"
+(iii): the default activation function of "logistic"
+```{r}
+set.seed(123)
+model <- neuralnet(class~., data=train.data, hidden=3, err.fct="ce",act.fct="logistic",linear.output=FALSE)
+plot(model, rep = "best")
+```
+
+# Confusion matrix - Perception model 4
+```{r}
+probabilities <- model %>% predict(test.data) %>% as.vector()
+predicted.class <- ifelse(probabilities>0.5,1,0)
+confusionMatrix(factor(predicted.class),factor(test.data$class),positive="1")
+```
+
+The prediction with hidden layer is better than no hidden layer.

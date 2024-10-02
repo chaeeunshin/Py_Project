@@ -1,0 +1,78 @@
+---
+title: Quiz 10
+author: Chaeeun Shin
+output: pdf_document
+---
+
+```{r}
+banknote <- read.csv("banknote.csv")
+banknote$class <- as.factor(banknote$class)
+banknote <- na.omit(banknote)
+cat("There are ", nrow(banknote), "observations left.")
+```
+
+```{r}
+library(caret)
+library(tidyverse)
+set.seed(123)
+training_samples <- banknote$class %>%
+  createDataPartition(p=0.75,list=FALSE)
+train_data <- banknote[training_samples,]
+test_data <- banknote[-training_samples,]
+nrow(train_data)
+nrow(test_data)
+```
+
+```{r}
+library(kernlab)
+set.seed(123)
+model1 <- train(class~.,data=train_data,method="svmLinear",trControl=trainControl("cv",number=10))
+predicted_class <- model1 %>% predict(test_data)
+
+confusionMatrix(factor(predicted_class),factor(test_data$class),positive="1")
+```
+
+```{r}
+set.seed(123)
+model2 <- train(class~., data=train_data,method="svmLinear",trControl=trainControl("cv",number=10),tuneGrid=expand.grid(C=seq(0,2,length=20)))
+model2$bestTune
+
+model2 <- train(class~.,data=train_data,method="svmLinear",trControl=trainControl("cv",number=10),tuneGrid=expand.grid(C=1.789))
+
+predicted_class_linear <- model2 %>% predict(test_data)
+confusionMatrix(factor(predicted_class_linear),factor(test_data$class),positive='1')
+predclass <- as.data.frame(predicted_class_linear)
+```
+
+```{r}
+set.seed(123)
+model3 <- train(class~.,data=train_data,method="svmRadial",trControl=trainControl("cv",number=10),tuneLength=10)
+model3$bestTune
+
+predicted_class_radial <- model3 %>% predict(test_data)
+confusionMatrix(factor(predicted_class_radial),factor(test_data$class),positive='1')
+predclass <- cbind(predclass,predicted_class_radial)
+```
+
+```{r}
+set.seed(123)
+model4 <- train(class~., data=train_data,method="svmPoly",trControl=trainControl("cv",number=10),tuneLength=4)
+model4$bestTune
+
+predicted_class_poly <- model4 %>% predict(test_data)
+confusionMatrix(factor(predicted_class_poly),factor(test_data$class),positive="1")
+predclass <- cbind(predclass,predicted_class_poly)
+
+```
+
+6. SVM with radial basis kernel and with polynomial kernel give us the best accuracy. (Accuracy=1)
+
+```{r}
+majority_vote <- function(row) {
+  counts <- table(row)
+  majority_value <- names(counts)[which.max(counts)]
+  return(as.numeric(majority_value))
+}
+predicted_class_mv <- apply(predclass,1,majority_vote)
+confusionMatrix(factor(predicted_class_mv),factor(test_data$class),positive='1')
+```

@@ -1,0 +1,91 @@
+---
+title: Quiz 6
+author: Chaeeun Shin
+date: 03/26/2024
+output: pdf_document
+---
+# Installing packages
+```{r}
+library(MASS)
+library(tidyverse)
+library(caret)
+library(caTools)
+library(rpart)
+library(rattle)
+library(openxlsx)
+```
+#1. 
+# Reading data, deleting missing values
+```{r}
+#setwd("/Users/chaeeunshin/Desktop/AMS 580")
+data <- read.csv("GreatUnknown.csv",header=TRUE)
+cat("There were originally",nrow(data), "cases in the data.","\n")
+data <- data[complete.cases(data),]
+data$y <- as.factor(data$y)
+cat("There are", nrow(data), "cases left.","\n")
+```
+
+# Spliting training and testing 
+```{r}
+set.seed(456)
+training_samples <- data$y %>%
+  createDataPartition(p=0.75,list=FALSE)
+train.data <- data[training_samples,]
+test.data <- data[-training_samples,]
+nrow(train.data)
+nrow(test.data)
+```
+
+#2.
+# Fully grown tree, drawing the tree plot
+```{r}
+model <- rpart(y~., data=train.data,control=rpart.control(cp=0), method="class")
+fancyRpartPlot(model)
+```
+
+# Prediction: Confusion matrix, sensitivity, specificity, accuracy
+```{r}
+fulltreepred <- predict(model, newdata=test.data, type="class")
+(cm.full <- confusionMatrix(pred,test.data$y,positive="1"))
+```
+
+#3.
+# Prune the tree with 10-fold cross-validation
+```{r}
+set.seed(456)
+model2 <- train(y~., data=train.data, method="rpart", trControl = trainControl(method="cv",number=10),tuneLength=50)
+plot(model2)
+model2$bestTune
+fancyRpartPlot(model2$finalModel)
+```
+#4.
+```{r}
+pred <- predict(model2, newdata=test.data,type="raw")
+prunedtreepred <- ifelse(pred==1, 1,0)
+(cm.pruned <- confusionMatrix(pred,test.data$y,positive="1"))
+```
+#5.
+```{r}
+logmodel <- glm(y~.,data=train.data,family="binomial")
+logisticpred <- predict(logmodel, newdata=test.data)
+logisticpred <- factor(ifelse(logisticpred>0.5,1,0))
+(cm.log <- confusionMatrix(logisticpred,test.data$y,positive="1"))
+```
+#6.
+```{r}
+output <- data.frame(Full_tree_prediction = fulltreepred, Pruned_tree_prediction = prunedtreepred, Logistic_prediction = logisticpred)
+write.csv(output, "Prediction output.csv")
+```
+
+#Generating majority vote
+```{r}
+majorityvote <- function(x) {
+  return(names(sort(table(x),decreasing=TRUE))[1])
+}
+final_pred <- apply(output,1,majorityvote)
+```
+
+# Confusion matrix, sensitivity, specifity, accuracy
+```{r}
+(cm.majority <- confusionMatrix(factor(final_pred),test.data$y, positive="1"))
+```

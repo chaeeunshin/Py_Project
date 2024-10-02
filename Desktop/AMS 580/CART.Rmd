@@ -1,0 +1,97 @@
+---
+title: CART Practice
+output: pdf_document
+---
+
+# Loading packages
+```{r}
+if(!requireNamespace("caTools")) install.packages('caTools')
+if(!requireNamespace("tidyverse")) install.packages('tidyverse')
+if(!requireNamespace("caret")) install.packages('caret')
+if(!requireNamespace("rpart")) install.packages('rpart')
+if(!requireNamespace("rattle")) install.packages('rattle')
+library(caTools)
+library(caret)
+library(tidyverse)
+library(rpart)
+library(rattle)
+```
+
+# Reading data
+1. Exclude Name, Ticket, Cabin
+2. Omit missing value in Age
+3. Survived and Pclass as factor
+```{r}
+data <- read.csv("Titanic.csv")
+data <- subset(data, select=-c(Name,Ticket,Cabin))
+data <- subset(data,!is.na(Age))
+cat("There are", nrow(data), "passengers left.")
+data$Survived <- as.factor(data$Survived)
+data$Pclass <- as.factor(data$Pclass)
+```
+
+# Split data
+```{r}
+set.seed(123)
+training_samples <- data$Survived %>% 
+  createDataPartition(p=0.8,list=FALSE)
+train.data <- data[training_samples,]
+test.data <- data[-training_samples,]
+```
+
+# Fully grown tree 
+```{r}
+model <- rpart(Survived~., data=train.data, control=rpart.control(cp=0))
+fancyRpartPlot(model)
+```
+
+# Confusion matrix
+```{r}
+pred <- predict(model, newdata=test.data, type = "class")
+pred <- ifelse(pred==1, 'predict_1','predict_0')
+table(pred,test.data$Survived)
+```
+
+# Sensitivity
+```{r}
+47/(47+11)
+```
+
+# Specificity
+```{r}
+71/(71+13)
+```
+
+# Accuracy
+```{r}
+(47+71)/(47+71+11+13)
+```
+
+# Prune the tree with 10-fold cross-validation
+```{r}
+set.seed(123)
+model2 <- train(Survived~., data=train.data, method="rpart",trControl=trainControl("cv",number=10),tuneLength=100)
+plot(model2) 
+model2$bestTune 
+fancyRpartPlot(model2$finalModel)
+```
+
+# Prediction and confusion matrix
+```{r}
+pred <- predict(model2, newdata=test.data)
+pred <- ifelse(pred==1,'survived','dead')
+table(pred,test.data$Survived)
+```
+
+# Sensitivity
+```{r}
+36/(36+22)
+```
+# Specificity
+```{r}
+79/(79+5)
+```
+# Accuracy
+```{r}
+(79+36)/(79+22+5+36)
+```
